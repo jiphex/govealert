@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"log"
-	"os"
 	"net"
+	"os"
+	"time"
 
-	"bytemark.co.uk/mauvesend.go/golang-timeinput-dev"
 	"code.google.com/p/goprotobuf/proto"
-	"github.com/jiphex/govealert/mauve"
+	"repos.bytemark.co.uk/govealert/mauve"
+	"repos.bytemark.co.uk/mauvesend.go/golang-timeinput-dev"
 )
 
 func CreateAlert(id *string, raise *string, clear *string, subject *string, summary *string, detail *string) *mauve.Alert {
@@ -24,7 +25,7 @@ func CreateAlert(id *string, raise *string, clear *string, subject *string, summ
 			alert.RaiseTime = &rt
 		}
 	}
-	
+
 	if *clear != "" {
 		ct, err := timeinput.RelativeUnixTime(*clear)
 		if err != nil {
@@ -49,32 +50,38 @@ func CreateAlert(id *string, raise *string, clear *string, subject *string, summ
 }
 
 func CreateUpdate(source *string, replace *bool, alert *mauve.Alert) *mauve.AlertUpdate {
-    alerts := []*mauve.Alert{alert}
-     update := &mauve.AlertUpdate {
-         Source: source,
-         Replace: replace,
-         Alert: alerts,
-     }
-     return update
+	transmissionID := uint64(506157851);
+	alerts := []*mauve.Alert{alert}
+	now := uint64(time.Now().Unix())
+	update := &mauve.AlertUpdate{
+		Source:  source,
+		Replace: replace,
+		Alert:   alerts,
+		TransmissionId: &transmissionID,
+		TransmissionTime: &now,
+	}
+	return update
 }
 
+
 func DialMauve(host *string, queue chan *mauve.AlertUpdate) {
-    addr, err := net.ResolveUDPAddr("udp", *host)
-    if err != nil {
-        log.Fatal("Cannot resolve mauvealert server: %s", addr)
-    }
-    conn,err := net.DialUDP("udp",nil,addr)
-    if err != nil {
-        log.Fatal("Failed to connect to mauve: %s", addr)
-    }
-    log.Printf("dialing...")
-    for {
-        au := <-queue
-        mu,_ := proto.Marshal(au)
-        log.Printf("Sent: %s", au.String())
-        conn.Write(mu)
-        log.Printf("sent %d bytes to %s",len(mu), *host)
-    }
+	addr, err := net.ResolveUDPAddr("udp", *host)
+	if err != nil {
+		log.Fatal("Cannot resolve mauvealert server: %s", addr)
+	}
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		log.Fatal("Failed to connect to mauve: %s", addr)
+	}
+	defer conn.Close()
+	log.Printf("dialing...")
+	for {
+		au := <-queue
+		mu, _ := proto.Marshal(au)
+		log.Printf("Sent: %s", au.String())
+		conn.Write(mu)
+		log.Printf("sent %d bytes to %s", len(mu), *host)
+	}
 }
 
 func main() {
@@ -87,13 +94,12 @@ func main() {
 	source := flag.String("source", hostname, "The thing that generated the alert")
 	raise := flag.String("raise", "now", "Time to raise the alert")
 	clear := flag.String("clear", "", "Time to clear the alert")
-	replace := flag.Bool("replace",false,"Replace all alerts for this subject")
-	mauvealert := flag.String("mauve","alert.bytemark.co.uk:32741","Mauve Server to dial")
+	replace := flag.Bool("replace", false, "Replace all alerts for this subject")
+	mauvealert := flag.String("mauve", "alert.bytemark.co.uk:32741", "Mauve Server to dial")
 	flag.Parse()
 	hole := make(chan *mauve.AlertUpdate)
 	go DialMauve(mauvealert, hole)
 	al := CreateAlert(id, raise, clear, subject, summary, detail)
-	up := CreateUpdate(source,replace,al)
+	up := CreateUpdate(source, replace, al)
 	hole <- up
-	<- hole
 }
