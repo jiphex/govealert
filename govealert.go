@@ -4,91 +4,19 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"os"
-	"time"
 
 	"code.google.com/p/goprotobuf/proto"
-	"repos.bytemark.co.uk/govealert/mauve"
-	"repos.bytemark.co.uk/mauvesend.go/golang-timeinput-dev"
+	. "repos.bytemark.co.uk/govealert/mauve"
 )
 
-func CreateAlert(id *string, raise *string, clear *string, subject *string, summary *string, detail *string, suppress *string) *mauve.Alert {
-	alert := &mauve.Alert{
-		Id: id,
-	}
 
-	if *raise != "" {
-		rt, err := timeinput.RelativeUnixTime(*raise)
-		if err != nil {
-			log.Fatalf("Failed to parse raise time.")
-		} else {
-			alert.RaiseTime = &rt
-		}
-	}
-
-	if *clear != "" {
-		ct, err := timeinput.RelativeUnixTime(*clear)
-		if err != nil {
-			log.Fatalf("Failed to parse clear time.")
-		} else {
-			alert.ClearTime = &ct
-		}
-	}
-
-	if *suppress != "" {
-		st, err := timeinput.RelativeUnixTime(*suppress)
-		if err != nil {
-			log.Fatalf("Failed to parse suppress time.")
-		} else {
-			alert.SuppressUntil = &st
-		}
-	}
-
-	if *subject != "" {
-		alert.Subject = subject
-	} else {
-		hn, _ := os.Hostname()
-		alert.Subject = &hn
-	}
-	if *summary != "" {
-		alert.Summary = summary
-	}
-	if *detail != "" {
-		alert.Detail = detail
-	}
-	return alert
-}
-
-func randomTransmissionId() uint64 {
-	// Just make a random number, used for the AlertUpdate creation.
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return uint64(r.Int63())
-}
-
-func CreateUpdate(source *string, replace *bool, alert *mauve.Alert) *mauve.AlertUpdate {
-	// Wrap a single Alert in an AlertUpdate message, with the
-	// appropriate source and replace flags set.
-	transmissionID := randomTransmissionId()
-	alerts := make([]*mauve.Alert, 0)
-	alerts = append(alerts, alert)
-	now := uint64(time.Now().Unix())
-	update := &mauve.AlertUpdate{
-		Source:           source,
-		Replace:          replace,
-		Alert:            alerts,
-		TransmissionId:   &transmissionID,
-		TransmissionTime: &now,
-	}
-	return update
-}
-
-func DialMauve(source *string, replace *bool, host *string, queue <-chan *mauve.Alert, receipt chan<- uint64) {
+func DialMauve(source string, replace bool, host string, queue <-chan *Alert, receipt chan<- uint64) {
 	// This connects to Mauve over UDP and then waits on it's channel,
 	// any Alert that gets written to the channel will get wrapped in
 	// an AlertUpdate and then sent to the Mauve server
-	addr, err := net.ResolveUDPAddr("udp", *host)
+	addr, err := net.ResolveUDPAddr("udp", host)
 	if err != nil {
 		log.Fatal("Cannot resolve mauvealert server: %s", addr)
 	}
@@ -99,13 +27,18 @@ func DialMauve(source *string, replace *bool, host *string, queue <-chan *mauve.
 	defer conn.Close() // Just make sure that the connection gets flushed
 	//log.Printf("dialing...")
 	for {
-		au := <-queue
-		up := CreateUpdate(source, replace, au)
-		mu, _ := proto.Marshal(up)
+		al := <-queue
+		up := CreateUpdate(source, replace, al)
+		mu, err := proto.Marshal(up)
+		if(err != nil) {
+			log.Fatalf("Failed to marshal an alertUpdate: %s", err)
+		}
 		//log.Printf("Sent: %s", up.String())
-		conn.Write(mu)
-		//log.Printf("sent %d bytes to %s", len(mu), *host)
-		receipt <- *up.TransmissionId
+		if _,err := conn.Write(mu); err != nil {
+			log.Fatalf("Failed to send message: %s", err)
+		} else {
+			receipt <- *up.TransmissionId
+		}
 	}
 }
 
@@ -127,9 +60,9 @@ func main() {
 	if len(*clear) > 0 {
 		*raise = ""
 	}
-	msend := make(chan *mauve.Alert)
+	msend := make(chan *Alert, 5)
 	receipt := make(chan uint64)
-	go DialMauve(source, replace, mauvealert, msend, receipt)
+	go DialMauve(*source, *replace, *mauvealert, msend, receipt)
 	if *heartbeat {
 		hbsumm := fmt.Sprintf("heartbeat failed for %s", hostname)
 		hbdetail := fmt.Sprintf("The govealert heartbeat wasn't sent for the host %s.", hostname)
@@ -141,20 +74,20 @@ func main() {
 			//log.Printf("Cancelling alert heartbeat")
 			supraise := "now"
 			suptime := "+5m"
-			sup := CreateAlert(&hbid, &supraise, &hbclear, &hostname, &hbsumm,&hbdetail, &suptime)
+			sup := CreateAlert(hbid, supraise, hbclear, hostname, hbsumm,hbdetail, suptime)
 			msend <- sup
 			<-receipt
-			clr := CreateAlert(&hbid, &hbclear, &supraise, &hostname, &hbsumm, &hbdetail, &hbclear)
+			clr := CreateAlert(hbid, hbclear, supraise, hostname, hbsumm, hbdetail, hbclear)
 			msend <- clr
 			<-receipt
 		} else {
 			// 	Send a hearbeat alert
-			al := CreateAlert(&hbid, &hbraise, &hbclear, &hostname, &hbsumm, &hbdetail, &hbclear)
+			al := CreateAlert(hbid, hbraise, hbclear, hostname, hbsumm, hbdetail, hbclear)
 			msend <- al
 			<-receipt
 		}
 	} else {
-		custom := CreateAlert(id, raise, clear, subject, summary, detail, suppress)
+		custom := CreateAlert(*id, *raise, *clear, *subject, *summary, *detail, *suppress)
 		msend <- custom
 		<-receipt
 	}
