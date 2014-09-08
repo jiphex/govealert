@@ -6,11 +6,25 @@ import (
 	"log"
 	"net"
 	"os"
+	"encoding/json"
 
 	"code.google.com/p/goprotobuf/proto"
 	. "repos.bytemark.co.uk/govealert/mauve"
 )
 
+func DialMQTT(source string, broker string, topicBase string, queue <-chan *Alert, receipt chan<- uint64) {
+	for {
+		al := <-queue
+		json,err := json.Marshal(al)
+		if err != nil {
+			log.Fatalf("JSON Marshalling fail: %v", err)
+		} else {
+			log.Printf("Alert: %s", json)
+		}
+		// send the packet
+		log.Printf("Sending MQTT transport packet: %s", al)
+	}
+}
 
 func DialMauve(source string, replace bool, host string, queue <-chan *Alert, receipt chan<- uint64) {
 	// This connects to Mauve over UDP and then waits on it's channel,
@@ -52,10 +66,13 @@ func main() {
 	raise := flag.String("raise", "now", "Time to raise the alert")
 	clear := flag.String("clear", "", "Time to clear the alert")
 	replace := flag.Bool("replace", false, "Replace all alerts for this subject")
-	mauvealert := flag.String("mauve", "alert.bytemark.co.uk:32741", "Mauve Server to dial")
+	mauvealert := flag.String("mauve", "alert.bytemark.co.uk:32741", "Mauve (or MQTT) Server to dial")
 	suppress := flag.String("suppress", "", "Suppress alert for the specified time")
 	heartbeat := flag.Bool("heartbeat", false, "Don't do normal operation, just send a 10 minute heartbeat")
 	cancel := flag.Bool("cancel", false, "When specified with -heartbeat, cancels the heartbeat (via suppress+raise, clear)")
+	mqtt := flag.Bool("mqtt", false, "Whether to use the (experimental) MQTT transport instead of protobuf")
+	mqttBroker := flag.String("mqtt-broker", "tcp://localhost:1883", "The MQTT Broker to connect to")
+	mqttTopic := flag.String("mqtt-base", "/govealert", "Base topic for MQTT transport packets")
 	flag.Parse()
 	if len(*clear) > 0 {
 		*raise = ""
@@ -63,7 +80,11 @@ func main() {
 	msend := make(chan *Alert, 5)
 	// This is just a channel we wait on to make sure we only send one alert at once
 	receipt := make(chan uint64)
-	go DialMauve(*source, *replace, *mauvealert, msend, receipt)
+	if *mqtt {
+		go DialMQTT(*source, *mqttBroker, *mqttTopic, msend, receipt)
+	} else {
+		go DialMauve(*source, *replace, *mauvealert, msend, receipt)
+	}
 	if *heartbeat {
 		hbsumm := fmt.Sprintf("heartbeat failed for %s", hostname)
 		hbdetail := fmt.Sprintf("The govealert heartbeat wasn't sent for the host %s.", hostname)
