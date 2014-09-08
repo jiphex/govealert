@@ -1,0 +1,5 @@
+govealert (0.1) UNRELEASED; urgency=medium
+
+  * Initial packaging for debian.
+
+ -- James Hannah <james.hannah@bytemark.co.uk>  Mon, 08 Sep 2014 11:53:27 +0100

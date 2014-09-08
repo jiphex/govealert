@@ -1,2 +1,3 @@
 govealert
 build/
+debian/debhelper.log
