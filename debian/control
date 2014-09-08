@@ -1,0 +1,20 @@
+Source: govealert
+Section: net
+Priority: extra
+Maintainer: James Hannah <james.hannah@bytemark.co.uk>
+Build-Depends: debhelper (>= 8.0.0),
+               dh-golang,
+               golang-go,
+               golang-godebiancontrol-dev,
+               golang-goprotobuf-dev
+Standards-Version: 3.9.2
+#Vcs-Git: 
+#Vcs-Browser: 
+
+Package: govealert
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, dpkg-dev
+Built-Using: ${misc:Built-Using}
+Description: GoveAlert tools compatible with Bytemark's Mauvealert
+ Client binary, intended as a cross-platform replacement for Mauvesend (Ruby)
+

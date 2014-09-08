@@ -61,6 +61,7 @@ func main() {
 		*raise = ""
 	}
 	msend := make(chan *Alert, 5)
+	// This is just a channel we wait on to make sure we only send one alert at once
 	receipt := make(chan uint64)
 	go DialMauve(*source, *replace, *mauvealert, msend, receipt)
 	if *heartbeat {
@@ -68,7 +69,7 @@ func main() {
 		hbdetail := fmt.Sprintf("The govealert heartbeat wasn't sent for the host %s.", hostname)
 		hbid := "heartbeat"
 		hbraise := "+10m"
-		hbclear := ""
+		hbclear := "now"
 		if *cancel {
 			// Cancel a heartbeat alert by sending: suppressed raise, clear (experimental)
 			//log.Printf("Cancelling alert heartbeat")
@@ -81,7 +82,7 @@ func main() {
 			msend <- clr
 			<-receipt
 		} else {
-			// 	Send a hearbeat alert
+			// 	Send a hearbeat alert (clear now, raise in 10 minutes - meant to be called every N where N < 5 minutes)
 			al := CreateAlert(hbid, hbraise, hbclear, hostname, hbsumm, hbdetail, hbclear)
 			msend <- al
 			<-receipt
