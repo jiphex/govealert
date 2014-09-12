@@ -6,23 +6,43 @@ import (
 	"log"
 	"net"
 	"os"
-	"encoding/json"
+	//"encoding/json"
 
+	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"code.google.com/p/goprotobuf/proto"
 	. "repos.bytemark.co.uk/govealert/mauve"
 )
 
+func mqttDisconnect(client *mqtt.MqttClient, reason error) {
+	log.Fatalf("Lost MQTT Connection because: %s", reason)
+}
+
+func alertTopic(al *Alert, source string) string {
+	return fmt.Sprintf("%s/%s/%s", source, *al.Subject, *al.Id)
+}
+
 func DialMQTT(source string, broker string, topicBase string, queue <-chan *Alert, receipt chan<- uint64) {
+	mqttOpts := mqtt.NewClientOptions().AddBroker(broker).SetClientId("govealert").SetCleanSession(true).SetOnConnectionLost(mqttDisconnect)
+	client := mqtt.NewClient(mqttOpts)
+	if _,err := client.Start(); err != nil {
+		log.Fatalf("Failed to connect to MQTT Broker: %s - %s", broker, err)
+	} else {
+		log.Printf("Connected to Broker")
+	}
 	for {
 		al := <-queue
-		json,err := json.Marshal(al)
+		//pkt,err := json.Marshal(al)
+		pkt,err := proto.Marshal(al)
 		if err != nil {
-			log.Fatalf("JSON Marshalling fail: %v", err)
-		} else {
-			log.Printf("Alert: %s", json)
+			log.Fatalf("Marshalling fail: %v", err)
 		}
 		// send the packet
 		log.Printf("Sending MQTT transport packet: %s", al)
+		fullTopic := fmt.Sprintf("%s/%s", topicBase,alertTopic(al, source))
+		mqttreceipt := client.Publish(mqtt.QOS_ONE, fullTopic, pkt)
+		<-mqttreceipt
+		receipt<-0
+		log.Printf("Sent MQTT transport packet: %s", al)
 	}
 }
 
@@ -70,7 +90,7 @@ func main() {
 	suppress := flag.String("suppress", "", "Suppress alert for the specified time")
 	heartbeat := flag.Bool("heartbeat", false, "Don't do normal operation, just send a 10 minute heartbeat")
 	cancel := flag.Bool("cancel", false, "When specified with -heartbeat, cancels the heartbeat (via suppress+raise, clear)")
-	mqtt := flag.Bool("mqtt", false, "Whether to use the (experimental) MQTT transport instead of protobuf")
+	transport := flag.String("transport", "protobuf", "Which transport to use, currently one of: protobuf, mqtt")
 	mqttBroker := flag.String("mqtt-broker", "tcp://localhost:1883", "The MQTT Broker to connect to")
 	mqttTopic := flag.String("mqtt-base", "/govealert", "Base topic for MQTT transport packets")
 	flag.Parse()
@@ -80,10 +100,12 @@ func main() {
 	msend := make(chan *Alert, 5)
 	// This is just a channel we wait on to make sure we only send one alert at once
 	receipt := make(chan uint64)
-	if *mqtt {
+	if *transport == "mqtt" {
 		go DialMQTT(*source, *mqttBroker, *mqttTopic, msend, receipt)
-	} else {
+	} else if *transport == "protobuf" {
 		go DialMauve(*source, *replace, *mauvealert, msend, receipt)
+	} else {
+		log.Fatalf("Invalid alert transport: %s", *transport)
 	}
 	if *heartbeat {
 		hbsumm := fmt.Sprintf("heartbeat failed for %s", hostname)

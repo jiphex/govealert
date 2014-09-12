@@ -5,8 +5,6 @@ import (
 	"os"
 	"time"
 	"fmt"
-	"text/template"
-	"bytes"
 )
 
 func CreateUpdate(source string, replace bool, alert *Alert) *AlertUpdate {
