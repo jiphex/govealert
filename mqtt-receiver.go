@@ -88,7 +88,9 @@ func dialMauve(replace bool, host string, queue <-chan *AlertUpdate) {
 
 func dialMQTT(broker string, baseTopic string) (*mqtt.MqttClient, chan mqtt.Message) {
 	incomingMessages := make(chan mqtt.Message)
-	mqttOpts := mqtt.NewClientOptions().AddBroker(broker).SetClientId("govealert-mqtt-receiver").SetCleanSession(true).SetOnConnectionLost(mqttDisconnect)
+	hostname,_ :+ os.Hostname()
+	clientId := fmt.Sprintf("govealert-mqtt-receiver-%s",hostname)
+	mqttOpts := mqtt.NewClientOptions().AddBroker(broker).SetClientId(clientId).SetCleanSession(false).SetOnConnectionLost(mqttDisconnect)
 	filter, _ := mqtt.NewTopicFilter(fmt.Sprintf("%s/+/+/+", baseTopic), byte(1))
 	mqttOpts.SetDefaultPublishHandler(func(client *mqtt.MqttClient, msg mqtt.Message) {
 		log.Printf("Packet on %s", msg.Topic())
