@@ -7,8 +7,8 @@ import (
 	"log"
 	"net"
 	"os"
-	"time"
 	"strconv"
+	"time"
 
 	"code.google.com/p/goprotobuf/proto"
 	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
@@ -19,33 +19,33 @@ func mqttDisconnect(client *mqtt.MqttClient, reason error) {
 	log.Fatalf("Lost MQTT Connection because: %s", reason)
 }
 
-func unmarshalAlert(payload []byte) (*Alert,error) {
+func unmarshalAlert(payload []byte) (*Alert, error) {
 	alert := new(Alert)
 	// first, try as protobuf
-	err := proto.Unmarshal(payload,alert)
+	err := proto.Unmarshal(payload, alert)
 	if err != nil {
 		// failed to unmarshal as proto, try as json
 		alert = new(Alert) // we need to zero the memory for Alert or it'll contain a borked proto unmarshal
 		log.Printf("JSON is [%s]", string(payload))
-		err := json.Unmarshal(payload,alert)
+		err := json.Unmarshal(payload, alert)
 		if err != nil {
 			// failed as JSON too, error
-			return alert,fmt.Errorf("Couldn't understand packet.")
+			return alert, fmt.Errorf("Couldn't understand packet.")
 		} else {
 			// JSON packet
 			log.Printf("Decoded alert as JSON: %v", alert)
-			return alert,nil
+			return alert, nil
 		}
 	} else {
 		// ok, it's proto, return it
-		return alert,nil
+		return alert, nil
 	}
 }
 
 func convertStreaming(baseTopic string, inc <-chan mqtt.Message, out chan<- *AlertUpdate) {
 	for {
 		m := <-inc
-		alert,err := unmarshalAlert(m.Payload())
+		alert, err := unmarshalAlert(m.Payload())
 		if err != nil {
 			log.Printf("Skipping packet that failed to unmarshal")
 		} else {
@@ -88,8 +88,8 @@ func dialMauve(replace bool, host string, queue <-chan *AlertUpdate) {
 
 func dialMQTT(broker string, baseTopic string) (*mqtt.MqttClient, chan mqtt.Message) {
 	incomingMessages := make(chan mqtt.Message)
-	hostname,_ :+ os.Hostname()
-	clientId := fmt.Sprintf("govealert-mqtt-receiver-%s",hostname)
+	hostname, _ := os.Hostname()
+	clientId := fmt.Sprintf("govealert-mqtt-receiver-%s", hostname)
 	mqttOpts := mqtt.NewClientOptions().AddBroker(broker).SetClientId(clientId).SetCleanSession(false).SetOnConnectionLost(mqttDisconnect)
 	filter, _ := mqtt.NewTopicFilter(fmt.Sprintf("%s/+/+/+", baseTopic), byte(1))
 	mqttOpts.SetDefaultPublishHandler(func(client *mqtt.MqttClient, msg mqtt.Message) {
@@ -107,12 +107,12 @@ func dialMQTT(broker string, baseTopic string) (*mqtt.MqttClient, chan mqtt.Mess
 			log.Printf("Failed to subscribe: %s", err)
 		}
 	}
-	return client,incomingMessages
+	return client, incomingMessages
 }
 
 func mqttHeartbeatTopic(baseTopic string) string {
 	hostname, _ := os.Hostname()
-    return fmt.Sprintf("%s/$heartbeat/%s", baseTopic, hostname)
+	return fmt.Sprintf("%s/$heartbeat/%s", baseTopic, hostname)
 }
 
 func mqttStatusPacket(running bool) *mqtt.Message {
@@ -157,8 +157,8 @@ func main() {
 	msend := make(chan *AlertUpdate, 50)    // the channel we'll dump AlertUpdate packets destined for Mauve into
 	go dialMauve(false, *mauvealert, msend) // this goroutine will send any packets on the msend channel into mauve
 
-	mq,incomingAlerts := dialMQTT(*mqttBroker, *mqttTopic)
-	go mqttHeartbeat(*mqttTopic, time.Duration(60)*time.Second,mq)
+	mq, incomingAlerts := dialMQTT(*mqttBroker, *mqttTopic)
+	go mqttHeartbeat(*mqttTopic, time.Duration(60)*time.Second, mq)
 
 	convertedAlerts := make(chan *AlertUpdate)
 	go convertStreaming(*mqttTopic, incomingAlerts, convertedAlerts)

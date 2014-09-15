@@ -1,15 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
-	"encoding/json"
 
-	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"code.google.com/p/goprotobuf/proto"
+	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	. "repos.bytemark.co.uk/govealert/mauve"
 )
 
@@ -24,7 +24,7 @@ func alertTopic(al *Alert, source string) string {
 func DialMQTT(source string, broker string, topicBase string, queue <-chan *Alert, receipt chan<- uint64, marshalAs string) {
 	mqttOpts := mqtt.NewClientOptions().AddBroker(broker).SetClientId("govealert").SetCleanSession(true).SetOnConnectionLost(mqttDisconnect)
 	client := mqtt.NewClient(mqttOpts)
-	if _,err := client.Start(); err != nil {
+	if _, err := client.Start(); err != nil {
 		log.Fatalf("Failed to connect to MQTT Broker: %s - %s", broker, err)
 	} else {
 		log.Printf("Connected to Broker")
@@ -34,19 +34,19 @@ func DialMQTT(source string, broker string, topicBase string, queue <-chan *Aler
 		var pkt []byte
 		var err error
 		if marshalAs == "json" {
-			pkt,err = json.Marshal(al)
+			pkt, err = json.Marshal(al)
 		} else {
-			pkt,err = proto.Marshal(al)
+			pkt, err = proto.Marshal(al)
 		}
 		if err != nil {
 			log.Fatalf("Marshalling fail: %v", err)
 		}
 		// send the packet
 		log.Printf("Sending MQTT transport packet: %s", al)
-		fullTopic := fmt.Sprintf("%s/%s", topicBase,alertTopic(al, source))
+		fullTopic := fmt.Sprintf("%s/%s", topicBase, alertTopic(al, source))
 		mqttreceipt := client.Publish(mqtt.QOS_ONE, fullTopic, pkt)
 		<-mqttreceipt
-		receipt<-0
+		receipt <- 0
 		log.Printf("Sent MQTT transport packet: %s", al)
 	}
 }
@@ -69,11 +69,11 @@ func DialMauve(source string, replace bool, host string, queue <-chan *Alert, re
 		al := <-queue
 		up := CreateUpdate(source, replace, al)
 		mu, err := proto.Marshal(up)
-		if(err != nil) {
+		if err != nil {
 			log.Fatalf("Failed to marshal an alertUpdate: %s", err)
 		}
 		//log.Printf("Sent: %s", up.String())
-		if _,err := conn.Write(mu); err != nil {
+		if _, err := conn.Write(mu); err != nil {
 			log.Fatalf("Failed to send message: %s", err)
 		} else {
 			receipt <- *up.TransmissionId
@@ -124,7 +124,7 @@ func main() {
 			//log.Printf("Cancelling alert heartbeat")
 			supraise := "now"
 			suptime := "+5m"
-			sup := CreateAlert(hbid, supraise, hbclear, hostname, hbsumm,hbdetail, suptime)
+			sup := CreateAlert(hbid, supraise, hbclear, hostname, hbsumm, hbdetail, suptime)
 			msend <- sup
 			<-receipt
 			clr := CreateAlert(hbid, hbclear, supraise, hostname, hbsumm, hbdetail, hbclear)
