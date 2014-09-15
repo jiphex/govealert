@@ -63,11 +63,11 @@ func dialMauve(replace bool, host string, queue <-chan *AlertUpdate) {
 	// an AlertUpdate and then sent to the Mauve server
 	addr, err := net.ResolveUDPAddr("udp", host)
 	if err != nil {
-		log.Fatal("Cannot resolve mauvealert server: %s", addr)
+		log.Fatalf("Cannot resolve mauvealert server: %s", addr)
 	}
 	conn, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
-		log.Fatal("Failed to connect to mauve: %s", addr)
+		log.Fatalf("Failed to connect to mauve: %s", addr)
 	}
 	defer conn.Close() // Just make sure that the connection gets flushed
 	//log.Printf("dialing...")
