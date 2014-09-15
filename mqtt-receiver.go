@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"time"
+	"strconv"
 
 	"code.google.com/p/goprotobuf/proto"
 	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
@@ -34,27 +35,7 @@ func convertStreaming(baseTopic string, inc <-chan mqtt.Message, out chan<- *Ale
 	}
 }
 
-func mqttStatusPacket() []byte {
-	hostname, _ := os.Hostname()
-	now := time.Now().Unix()
-	status := map[string]string{
-		"hostname": hostname,
-		"now":      string(now),
-	}
-	json, _ := json.Marshal(status)
-	return json
-}
 
-func mqttHeartbeat(topicBase string, secs time.Duration, client mqtt.MqttClient) {
-	for {
-		hostname, _ := os.Hostname()
-		s := mqttStatusPacket()
-		publishTopic := fmt.Sprintf("%s/$heartbeat/%s", topicBase, hostname)
-		log.Printf("Publishing heartbeat to %s", publishTopic)
-		client.Publish(mqtt.QOS_ONE, publishTopic, s)
-		time.Sleep(secs)
-	}
-}
 
 func dialMauve(replace bool, host string, queue <-chan *AlertUpdate) {
 	// This connects to Mauve over UDP and then waits on it's channel,
@@ -85,7 +66,7 @@ func dialMauve(replace bool, host string, queue <-chan *AlertUpdate) {
 	}
 }
 
-func dialMQTT(broker string, baseTopic string) chan mqtt.Message {
+func dialMQTT(broker string, baseTopic string) (*mqtt.MqttClient, chan mqtt.Message) {
 	incomingMessages := make(chan mqtt.Message)
 	mqttOpts := mqtt.NewClientOptions().AddBroker(broker).SetClientId("govealert-mqtt-receiver").SetCleanSession(true).SetOnConnectionLost(mqttDisconnect)
 	filter, _ := mqtt.NewTopicFilter(fmt.Sprintf("%s/+/+/+", baseTopic), byte(1))
@@ -102,7 +83,31 @@ func dialMQTT(broker string, baseTopic string) chan mqtt.Message {
 			log.Printf("Failed to subscribe: %s", err)
 		}
 	}
-	return incomingMessages
+	return client,incomingMessages
+}
+
+func mqttStatusPacket() *mqtt.Message {
+	hostname, _ := os.Hostname()
+	now := time.Now().Unix()
+	status := map[string]string{
+		"hostname": hostname,
+		"now":      strconv.FormatInt(now, 10),
+	}
+	json, _ := json.Marshal(status)
+	m := mqtt.NewMessage(json)
+	m.SetRetainedFlag(true)
+	return m
+}
+
+func mqttHeartbeat(topicBase string, secs time.Duration, client *mqtt.MqttClient) {
+	for {
+		hostname, _ := os.Hostname()
+		s := mqttStatusPacket()
+		publishTopic := fmt.Sprintf("%s/$heartbeat/%s", topicBase, hostname)
+		log.Printf("Publishing heartbeat to %s", publishTopic)
+		client.PublishMessage(publishTopic, s)
+		time.Sleep(secs)
+	}
 }
 
 /*
@@ -117,13 +122,14 @@ func main() {
 	//heartbeat := flag.Bool("heartbeat", false, "Don't do normal operation, just send a 10 minute heartbeat")
 	//cancel := flag.Bool("cancel", false, "When specified with -heartbeat, cancels the heartbeat (via suppress+raise, clear)")
 	mqttBroker := flag.String("mqtt-broker", "tcp://localhost:1883", "The MQTT Broker to connect to")
-	mqttTopic := flag.String("mqtt-base", "/govealert", "Base topic for MQTT transport packets")
+	mqttTopic := flag.String("mqtt-base", "govealert", "Base topic for MQTT transport packets")
 	flag.Parse()
 
 	msend := make(chan *AlertUpdate, 50)    // the channel we'll dump AlertUpdate packets destined for Mauve into
 	go dialMauve(false, *mauvealert, msend) // this goroutine will send any packets on the msend channel into mauve
 
-	incomingAlerts := dialMQTT(*mqttBroker, *mqttTopic)
+	mq,incomingAlerts := dialMQTT(*mqttBroker, *mqttTopic)
+	go mqttHeartbeat(*mqttTopic, time.Duration(60)*time.Second,mq)
 
 	convertedAlerts := make(chan *AlertUpdate)
 	go convertStreaming(*mqttTopic, incomingAlerts, convertedAlerts)
