@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
-	//"encoding/json"
+	"encoding/json"
 
 	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"code.google.com/p/goprotobuf/proto"
@@ -21,7 +21,7 @@ func alertTopic(al *Alert, source string) string {
 	return fmt.Sprintf("%s/%s/%s", source, *al.Subject, *al.Id)
 }
 
-func DialMQTT(source string, broker string, topicBase string, queue <-chan *Alert, receipt chan<- uint64) {
+func DialMQTT(source string, broker string, topicBase string, queue <-chan *Alert, receipt chan<- uint64, marshalAs string) {
 	mqttOpts := mqtt.NewClientOptions().AddBroker(broker).SetClientId("govealert").SetCleanSession(true).SetOnConnectionLost(mqttDisconnect)
 	client := mqtt.NewClient(mqttOpts)
 	if _,err := client.Start(); err != nil {
@@ -31,8 +31,13 @@ func DialMQTT(source string, broker string, topicBase string, queue <-chan *Aler
 	}
 	for {
 		al := <-queue
-		//pkt,err := json.Marshal(al)
-		pkt,err := proto.Marshal(al)
+		var pkt []byte
+		var err error
+		if marshalAs == "json" {
+			pkt,err = json.Marshal(al)
+		} else {
+			pkt,err = proto.Marshal(al)
+		}
 		if err != nil {
 			log.Fatalf("Marshalling fail: %v", err)
 		}
@@ -93,6 +98,7 @@ func main() {
 	transport := flag.String("transport", "protobuf", "Which transport to use, currently one of: protobuf, mqtt")
 	mqttBroker := flag.String("mqtt-broker", "tcp://localhost:1883", "The MQTT Broker to connect to")
 	mqttTopic := flag.String("mqtt-base", "govealert", "Base topic for MQTT transport packets")
+	mqttPublishAs := flag.String("mqtt-marshal", "protobuf", "Marshalling to use for MQTT packets, one of: protobuf, json")
 	flag.Parse()
 	if len(*clear) > 0 {
 		*raise = ""
@@ -101,7 +107,7 @@ func main() {
 	// This is just a channel we wait on to make sure we only send one alert at once
 	receipt := make(chan uint64)
 	if *transport == "mqtt" {
-		go DialMQTT(*source, *mqttBroker, *mqttTopic, msend, receipt)
+		go DialMQTT(*source, *mqttBroker, *mqttTopic, msend, receipt, *mqttPublishAs)
 	} else if *transport == "protobuf" {
 		go DialMauve(*source, *replace, *mauvealert, msend, receipt)
 	} else {

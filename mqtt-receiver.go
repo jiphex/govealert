@@ -19,23 +19,43 @@ func mqttDisconnect(client *mqtt.MqttClient, reason error) {
 	log.Fatalf("Lost MQTT Connection because: %s", reason)
 }
 
+func unmarshalAlert(payload []byte) (*Alert,error) {
+	alert := new(Alert)
+	// first, try as protobuf
+	err := proto.Unmarshal(payload,alert)
+	if err != nil {
+		// failed to unmarshal as proto, try as json
+		alert = new(Alert) // we need to zero the memory for Alert or it'll contain a borked proto unmarshal
+		log.Printf("JSON is [%s]", string(payload))
+		err := json.Unmarshal(payload,alert)
+		if err != nil {
+			// failed as JSON too, error
+			return alert,fmt.Errorf("Couldn't understand packet.")
+		} else {
+			// JSON packet
+			log.Printf("Decoded alert as JSON: %v", alert)
+			return alert,nil
+		}
+	} else {
+		// ok, it's proto, return it
+		return alert,nil
+	}
+}
+
 func convertStreaming(baseTopic string, inc <-chan mqtt.Message, out chan<- *AlertUpdate) {
 	for {
 		m := <-inc
-		alert := new(Alert)
-		err := proto.Unmarshal(m.Payload(), alert)
-		log.Printf("Got %v", alert)
-		source, _, _ := ParseAlertTopic(baseTopic, m.Topic())
-		up := CreateUpdate(source, false, alert)
+		alert,err := unmarshalAlert(m.Payload())
 		if err != nil {
 			log.Printf("Skipping packet that failed to unmarshal")
 		} else {
+			source, _, _ := ParseAlertTopic(baseTopic, m.Topic())
+			up := CreateUpdate(source, false, alert)
+			log.Printf("Got %v", alert)
 			out <- up
 		}
 	}
 }
-
-
 
 func dialMauve(replace bool, host string, queue <-chan *AlertUpdate) {
 	// This connects to Mauve over UDP and then waits on it's channel,
@@ -145,6 +165,7 @@ func main() {
 
 	for {
 		inc = <-convertedAlerts
+		log.Printf("Passing on alertUpdate as: %v", inc)
 		msend <- inc
 	}
 }
