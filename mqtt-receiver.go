@@ -74,6 +74,8 @@ func dialMQTT(broker string, baseTopic string) (*mqtt.MqttClient, chan mqtt.Mess
 		log.Printf("Packet on %s", msg.Topic())
 		incomingMessages <- msg
 	})
+	willPacket := mqttStatusPacket(false)
+	mqttOpts.SetBinaryWill(mqttHeartbeatTopic(baseTopic), willPacket.Payload(), mqtt.QOS_ONE, true)
 	client := mqtt.NewClient(mqttOpts)
 	if _, err := client.Start(); err != nil {
 		log.Fatalf("Failed to connect to MQTT Broker: %s - %s", broker, err)
@@ -86,12 +88,18 @@ func dialMQTT(broker string, baseTopic string) (*mqtt.MqttClient, chan mqtt.Mess
 	return client,incomingMessages
 }
 
-func mqttStatusPacket() *mqtt.Message {
+func mqttHeartbeatTopic(baseTopic string) string {
+	hostname, _ := os.Hostname()
+    return fmt.Sprintf("%s/$heartbeat/%s", baseTopic, hostname)
+}
+
+func mqttStatusPacket(running bool) *mqtt.Message {
 	hostname, _ := os.Hostname()
 	now := time.Now().Unix()
 	status := map[string]string{
 		"hostname": hostname,
 		"now":      strconv.FormatInt(now, 10),
+		"running":  strconv.FormatBool(running),
 	}
 	json, _ := json.Marshal(status)
 	m := mqtt.NewMessage(json)
@@ -101,9 +109,8 @@ func mqttStatusPacket() *mqtt.Message {
 
 func mqttHeartbeat(topicBase string, secs time.Duration, client *mqtt.MqttClient) {
 	for {
-		hostname, _ := os.Hostname()
-		s := mqttStatusPacket()
-		publishTopic := fmt.Sprintf("%s/$heartbeat/%s", topicBase, hostname)
+		s := mqttStatusPacket(true)
+		publishTopic := mqttHeartbeatTopic(topicBase)
 		log.Printf("Publishing heartbeat to %s", publishTopic)
 		client.PublishMessage(publishTopic, s)
 		time.Sleep(secs)
