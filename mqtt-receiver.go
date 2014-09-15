@@ -3,11 +3,11 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
 	"time"
-	"fmt"
 
 	"code.google.com/p/goprotobuf/proto"
 	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
@@ -21,9 +21,9 @@ func mqttDisconnect(client *mqtt.MqttClient, reason error) {
 func convertStreaming(baseTopic string, inc <-chan mqtt.Message, out chan<- *AlertUpdate) {
 	for {
 		m := <-inc
-		log.Printf("Got %s", m)
 		alert := new(Alert)
 		err := proto.Unmarshal(m.Payload(), alert)
+		log.Printf("Got %v", alert)
 		source, _, _ := ParseAlertTopic(baseTopic, m.Topic())
 		up := CreateUpdate(source, false, alert)
 		if err != nil {
@@ -32,12 +32,6 @@ func convertStreaming(baseTopic string, inc <-chan mqtt.Message, out chan<- *Ale
 			out <- up
 		}
 	}
-}
-
-func convertAlerts(baseTopic string, incMessages <-chan mqtt.Message) <-chan *AlertUpdate {
-	ms := make(chan *AlertUpdate)
-	go convertStreaming(baseTopic, incMessages, ms)
-	return ms
 }
 
 func mqttStatusPacket() []byte {
@@ -56,11 +50,11 @@ func mqttHeartbeat(topicBase string, secs time.Duration, client mqtt.MqttClient)
 		hostname, _ := os.Hostname()
 		s := mqttStatusPacket()
 		publishTopic := fmt.Sprintf("%s/$heartbeat/%s", topicBase, hostname)
+		log.Printf("Publishing heartbeat to %s", publishTopic)
 		client.Publish(mqtt.QOS_ONE, publishTopic, s)
 		time.Sleep(secs)
 	}
 }
-
 
 func dialMauve(replace bool, host string, queue <-chan *AlertUpdate) {
 	// This connects to Mauve over UDP and then waits on it's channel,
@@ -85,8 +79,30 @@ func dialMauve(replace bool, host string, queue <-chan *AlertUpdate) {
 		//log.Printf("Sent: %s", up.String())
 		if _, err := conn.Write(mu); err != nil {
 			log.Fatalf("Failed to send message: %s", err)
+		} else {
+			log.Printf("Sent %s@%s/%s to Mauve.", *up.Alert[0].Id, *up.Source, *up.Alert[0].Subject)
 		}
 	}
+}
+
+func dialMQTT(broker string, baseTopic string) chan mqtt.Message {
+	incomingMessages := make(chan mqtt.Message)
+	mqttOpts := mqtt.NewClientOptions().AddBroker(broker).SetClientId("govealert-mqtt-receiver").SetCleanSession(true).SetOnConnectionLost(mqttDisconnect)
+	filter, _ := mqtt.NewTopicFilter(fmt.Sprintf("%s/+/+/+", baseTopic), byte(1))
+	mqttOpts.SetDefaultPublishHandler(func(client *mqtt.MqttClient, msg mqtt.Message) {
+		log.Printf("Packet on %s", msg.Topic())
+		incomingMessages <- msg
+	})
+	client := mqtt.NewClient(mqttOpts)
+	if _, err := client.Start(); err != nil {
+		log.Fatalf("Failed to connect to MQTT Broker: %s - %s", broker, err)
+	} else {
+		log.Printf("Connected to Broker")
+		if _, err := client.StartSubscription(nil, filter); err != nil {
+			log.Printf("Failed to subscribe: %s", err)
+		}
+	}
+	return incomingMessages
 }
 
 /*
@@ -96,7 +112,6 @@ provided and receive MQTTMessages containing Alerts.
 Every Alert needs to be wrapped into an AlertUpdate, and then passed to
 Mauve.
 */
-
 func main() {
 	mauvealert := flag.String("mauve", "alert.bytemark.co.uk:32741", "Mauve (or MQTT) Server to dial")
 	//heartbeat := flag.Bool("heartbeat", false, "Don't do normal operation, just send a 10 minute heartbeat")
@@ -108,26 +123,15 @@ func main() {
 	msend := make(chan *AlertUpdate, 50)    // the channel we'll dump AlertUpdate packets destined for Mauve into
 	go dialMauve(false, *mauvealert, msend) // this goroutine will send any packets on the msend channel into mauve
 
-	incomingAlerts := make(chan mqtt.Message)
-	mqttOpts := mqtt.NewClientOptions().AddBroker(*mqttBroker).SetClientId("govealert-mqtt-receiver").SetCleanSession(true).SetOnConnectionLost(mqttDisconnect)
-	filter,_ := mqtt.NewTopicFilter(fmt.Sprintf("%s/+/+/+",*mqttTopic),byte(1))
-	client := mqtt.NewClient(mqttOpts)
-    msgHandler := func(client *mqtt.MqttClient, msg mqtt.Message) {
-		log.Printf("Packet on %s", msg.Topic())
-		incomingAlerts <- msg
-	}
-	if _, err := client.Start(); err != nil {
-		log.Fatalf("Failed to connect to MQTT Broker: %s - %s", *mqttBroker, err)
-	} else {
-		log.Printf("Connected to Broker")
-		if _,err := client.StartSubscription(msgHandler,filter); err != nil {
-			log.Printf("Failed to subscribe: %s", err)
-		}
-	}
-    incAlertUpdate := convertAlerts(*mqttTopic, incomingAlerts)
-    var inc *AlertUpdate
+	incomingAlerts := dialMQTT(*mqttBroker, *mqttTopic)
+
+	convertedAlerts := make(chan *AlertUpdate)
+	go convertStreaming(*mqttTopic, incomingAlerts, convertedAlerts)
+
+	var inc *AlertUpdate
+
 	for {
-		inc = <-incAlertUpdate
+		inc = <-convertedAlerts
 		msend <- inc
 	}
 }

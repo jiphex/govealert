@@ -87,5 +87,5 @@ func AlertTopic(al *Alert, source string) string {
 func ParseAlertTopic(baseTopic string, topic string) (source string, subject string, id string) {
 	lBase := len(strings.Split(baseTopic, "/")) // todo: deal with leading/trailing slashes
 	parts := strings.SplitN(topic, "/", lBase+3)
-	return parts[0], parts[1], parts[2]
+	return parts[1], parts[2], parts[3]
 }
