@@ -1,10 +1,11 @@
 package mauve
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
-	"fmt"
 )
 
 func CreateUpdate(source string, replace bool, alert *Alert) *AlertUpdate {
@@ -77,4 +78,14 @@ func CreateAlert(id string, raise string, clear string, subject string, summary 
 		alert.Detail = &detail
 	}
 	return &alert
+}
+
+func AlertTopic(al *Alert, source string) string {
+	return fmt.Sprintf("%s/%s/%s", source, *al.Subject, *al.Id)
+}
+
+func ParseAlertTopic(baseTopic string, topic string) (source string, subject string, id string) {
+	lBase := len(strings.Split(baseTopic, "/")) // todo: deal with leading/trailing slashes
+	parts := strings.SplitN(topic, "/", lBase+3)
+	return parts[0], parts[1], parts[2]
 }

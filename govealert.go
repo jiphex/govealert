@@ -92,7 +92,7 @@ func main() {
 	cancel := flag.Bool("cancel", false, "When specified with -heartbeat, cancels the heartbeat (via suppress+raise, clear)")
 	transport := flag.String("transport", "protobuf", "Which transport to use, currently one of: protobuf, mqtt")
 	mqttBroker := flag.String("mqtt-broker", "tcp://localhost:1883", "The MQTT Broker to connect to")
-	mqttTopic := flag.String("mqtt-base", "/govealert", "Base topic for MQTT transport packets")
+	mqttTopic := flag.String("mqtt-base", "govealert", "Base topic for MQTT transport packets")
 	flag.Parse()
 	if len(*clear) > 0 {
 		*raise = ""
