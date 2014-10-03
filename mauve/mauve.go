@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-func CreateUpdate(source string, replace bool, alert *Alert) *AlertUpdate {
-	// Wrap a single Alert in an AlertUpdate message, with the
-	// appropriate source and replace flags set.
+// Wrap a single Alert in an AlertUpdate message, with the
+// appropriate source and replace flags set.
+func CreateUpdate(source string, replace bool, alert *Alert) *AlertUpdate {	
 	transmissionID := randomTransmissionId()
 	alerts := []*Alert{alert}
 	now := uint64(time.Now().Unix())
@@ -24,13 +24,16 @@ func CreateUpdate(source string, replace bool, alert *Alert) *AlertUpdate {
 	return update
 }
 
+// Just make a random number, used for the AlertUpdate creation.
 func randomTransmissionId() uint64 {
-	// Just make a random number, used for the AlertUpdate creation.
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return uint64(r.Int63())
 }
 
-func parseTimeWithNow(raw string) time.Duration {
+// This is identical to time.ParseDuration(string), however it can also take 
+// the single string specifier "now" which should always return 0
+func ParseTimeWithNow(raw string) time.Duration {
+	// This parses 
 	if raw == "" {
 		panic(fmt.Sprintf("Empty duration: [%s]", raw))
 	} else if raw == "now" {
@@ -50,13 +53,13 @@ func parseTimeWithNow(raw string) time.Duration {
 func CreateAlert(id string, raise string, clear string, subject string, summary string, detail string, suppress string) *Alert {
 	var tRaise, tClear, tSuppress uint64
 	if raise != "" {
-		tRaise = uint64(time.Now().Add(parseTimeWithNow(raise)).Unix())
+		tRaise = uint64(time.Now().Add(ParseTimeWithNow(raise)).Unix())
 	}
 	if clear != "" {
-		tClear = uint64(time.Now().Add(parseTimeWithNow(clear)).Unix())
+		tClear = uint64(time.Now().Add(ParseTimeWithNow(clear)).Unix())
 	}
 	if suppress != "" {
-		tSuppress = uint64(time.Now().Add(parseTimeWithNow(suppress)).Unix())
+		tSuppress = uint64(time.Now().Add(ParseTimeWithNow(suppress)).Unix())
 	}
 	alert := Alert{
 		Id:            &id,
@@ -81,7 +84,10 @@ func CreateAlert(id string, raise string, clear string, subject string, summary 
 }
 
 func AlertTopic(al *Alert, source string) string {
-	return fmt.Sprintf("%s/%s/%s", source, *al.Subject, *al.Id)
+	esource := strings.Replace(source, "/", "_", -1)
+	esubj := strings.Replace(*al.Subject, "/", "_", -1)
+	eid := strings.Replace(*al.Id, "/", "_", -1)
+	return fmt.Sprintf("%s/%s/%s", esource, esubj, eid)
 }
 
 func ParseAlertTopic(baseTopic string, topic string) (source string, subject string, id string) {
