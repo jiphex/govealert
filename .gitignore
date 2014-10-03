@@ -1,3 +1,4 @@
 govealert
+mqtt-receiver
 build/
 debian/debhelper.log
