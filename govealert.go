@@ -7,7 +7,8 @@ import (
 	"log"
 	"net"
 	"os"
-
+	"code.google.com/p/go.net/publicsuffix"
+	
 	"code.google.com/p/goprotobuf/proto"
 	mqtt "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	. "repos.bytemark.co.uk/govealert/mauve"
@@ -51,11 +52,12 @@ func DialMQTT(source string, broker string, topicBase string, queue <-chan *Aler
 	}
 }
 
-func DialMauve(source string, replace bool, host string, queue <-chan *Alert, receipt chan<- uint64) {
+func DialMauve(source string, replace bool, host *MauveAlertService, queue <-chan *Alert, receipt chan<- uint64) {
 	// This connects to Mauve over UDP and then waits on it's channel,
 	// any Alert that gets written to the channel will get wrapped in
 	// an AlertUpdate and then sent to the Mauve server
-	addr, err := net.ResolveUDPAddr("udp", host)
+	mauveIP,err := net.ResolveIPAddr("ip",host.Host)
+	addr := &net.UDPAddr{mauveIP.IP,int(host.Port),mauveIP.Zone}
 	if err != nil {
 		log.Fatalf("Cannot resolve mauvealert server: %s", addr)
 	}
@@ -83,6 +85,11 @@ func DialMauve(source string, replace bool, host string, queue <-chan *Alert, re
 
 func main() {
 	hostname, _ := os.Hostname()
+	// we need to do some wrangling to get the default domain
+	psname,err := publicsuffix.EffectiveTLDPlusOne(hostname)
+	if err != nil {
+		psname = hostname // shrug
+	} 
 	id := flag.String("id", "govealert", "Alert ID to send")
 	subject := flag.String("subject", hostname, "What the alert is about")
 	summary := flag.String("summary", "", "Short text desription of the alert")
@@ -91,7 +98,7 @@ func main() {
 	raise := flag.String("raise", "now", "Time to raise the alert")
 	clear := flag.String("clear", "", "Time to clear the alert")
 	replace := flag.Bool("replace", false, "Replace all alerts for this subject")
-	mauvealert := flag.String("mauve", "alert.bytemark.co.uk:32741", "Mauve (or MQTT) Server to dial")
+	mauvealert := flag.String("mauve", psname, "Mauve server to dial (will lookup _mauve._udp SRV record of this domain)")
 	suppress := flag.String("suppress", "", "Suppress alert for the specified time")
 	heartbeat := flag.Bool("heartbeat", false, "Don't do normal operation, just send a 10 minute heartbeat")
 	cancel := flag.Bool("cancel", false, "When specified with -heartbeat, cancels the heartbeat (via suppress+raise, clear)")
@@ -100,8 +107,8 @@ func main() {
 	mqttTopic := flag.String("mqtt-base", "govealert", "Base topic for MQTT transport packets")
 	mqttPublishAs := flag.String("mqtt-marshal", "protobuf", "Marshalling to use for MQTT packets, one of: protobuf, json")
 	flag.Parse()
-	if len(*clear) > 0 {
-		*raise = ""
+	if len(*clear) > 0 && *raise == "now" {
+		*raise = "" // This is supposed to stop the unstated "raise now" if a clear is passed with no raise argument
 	}
 	msend := make(chan *Alert, 5)
 	// This is just a channel we wait on to make sure we only send one alert at once
@@ -109,7 +116,12 @@ func main() {
 	if *transport == "mqtt" {
 		go DialMQTT(*source, *mqttBroker, *mqttTopic, msend, receipt, *mqttPublishAs)
 	} else if *transport == "protobuf" {
-		go DialMauve(*source, *replace, *mauvealert, msend, receipt)
+		mauveHosts,err := LookupMauvesForDomain(*mauvealert) 
+		// todo: we only look up the first mauve server sadface
+		if err != nil {
+			log.Fatalf("Mauve Problem: %s", err)
+		}
+		go DialMauve(*source, *replace, mauveHosts[0], msend, receipt)
 	} else {
 		log.Fatalf("Invalid alert transport: %s", *transport)
 	}
