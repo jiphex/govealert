@@ -75,9 +75,10 @@ func DialMauve(source string, replace bool, host *MauveAlertService, queue <-cha
 			log.Fatalf("Failed to marshal an alertUpdate: %s", err)
 		}
 		//log.Printf("Sent: %s", up.String())
-		if _, err := conn.Write(mu); err != nil {
+		if bytes, err := conn.Write(mu); err != nil {
 			log.Fatalf("Failed to send message: %s", err)
 		} else {
+			log.Printf("Sent %d bytes to %s:%d", bytes, host.Host, host.Port)
 			receipt <- *up.TransmissionId
 		}
 	}
@@ -116,7 +117,7 @@ func main() {
 	if *transport == "mqtt" {
 		go DialMQTT(*source, *mqttBroker, *mqttTopic, msend, receipt, *mqttPublishAs)
 	} else if *transport == "protobuf" {
-		mauveHosts,err := LookupMauvesForDomain(*mauvealert) 
+		mauveHosts,err := LookupMauvesForDomain(*mauvealert)
 		// todo: we only look up the first mauve server sadface
 		if err != nil {
 			log.Fatalf("Mauve Problem: %s", err)

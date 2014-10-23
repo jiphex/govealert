@@ -23,7 +23,7 @@ func LookupMauvesForDomain(domain string) ([]*MauveAlertService, error) {
 		ret := make([]*MauveAlertService,len(addrs))
 		for i,srv := range addrs {
 			ret[i] = &MauveAlertService{
-				Host: srv.Target,
+				Host: srv.Target[0:len(srv.Target)-1],
 				Port: srv.Port,
 			}
 		}
