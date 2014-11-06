@@ -11,7 +11,7 @@ type AlertSender interface {
 }
 
 func LookupMauvesForDomain(domain string) ([]*MauveAlertService, error) {
-	cname,addrs,err := net.LookupSRV("mauve", "udp", domain)
+	cname,addrs,err := net.LookupSRV("mauvealert", "udp", domain)
 	if err != nil {
 		return nil,fmt.Errorf("Resolution error: %s", err)
 	}
