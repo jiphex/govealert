@@ -36,42 +36,52 @@ func randomTransmissionId() uint64 {
 
 // This is identical to time.ParseDuration(string), however it can also take 
 // the single string specifier "now" which should always return 0
-func ParseTimeWithNow(raw string) time.Duration {
+func ParseTimeWithNow(raw string) (time.Duration,error) {
 	// This parses 
 	if raw == "" {
-		panic(fmt.Sprintf("Empty duration: [%s]", raw))
+		return 0,fmt.Errorf("Invalid empty time string")
 	} else if raw == "now" {
-		return 0
+		return 0,nil
 	} else {
 		d, err := time.ParseDuration(raw)
 		if err != nil {
-			panic(err)
+			// log.Fatalf("Failed to parse raise time: ")
+			return 0,err
 		} else {
-			return d
+			return d,nil
 		}
 	}
-	// won't get here
-	return 0
 }
 
-func CreateAlert(id string, raise string, clear string, subject string, summary string, detail string, suppress string) *Alert {
+func CreateAlert(id string, raise string, clear string, subject string, summary string, detail string, suppress string) (*Alert,error) {
 	var tRaise, tClear, tSuppress uint64
 	if raise != "" {
-		tRaise = uint64(time.Now().Add(ParseTimeWithNow(raise)).Unix())
+		tDiff,err := ParseTimeWithNow(raise)
+		if err != nil {
+			return nil,fmt.Errorf("Problem with raise time: %s", err)
+		}
+		tRaise = uint64(time.Now().Add(tDiff).Unix())
 	}
 	if clear != "" {
-		tClear = uint64(time.Now().Add(ParseTimeWithNow(clear)).Unix())
+		tDiff,err := ParseTimeWithNow(clear)
+		if err != nil {
+			return nil,fmt.Errorf("Problem with clear time: %s", err)
+		}
+		tClear = uint64(time.Now().Add(tDiff).Unix())
 	}
-	if suppress != "" {
-		tSuppress = uint64(time.Now().Add(ParseTimeWithNow(suppress)).Unix())
+	if suppress != "" {	
+		tDiff,err := ParseTimeWithNow(suppress)
+		if err != nil {
+			return nil,fmt.Errorf("Problem with suppress time: %s", err)
+		}
+		tSuppress = uint64(time.Now().Add(tDiff).Unix())
 	}
 	alert := Alert{
 		Id:            &id,
 		RaiseTime:     &tRaise,
 		ClearTime:     &tClear,
 		SuppressUntil: &tSuppress,
-	}
-
+	}	
 	if subject != "" {
 		alert.Subject = &subject
 	} else {
@@ -84,7 +94,7 @@ func CreateAlert(id string, raise string, clear string, subject string, summary 
 	if detail != "" {
 		alert.Detail = &detail
 	}
-	return &alert
+	return &alert,nil
 }
 
 func AlertTopic(al *Alert, source string) string {

@@ -57,14 +57,23 @@ func main() {
 			//log.Printf("Cancelling alert heartbeat")
 			supraise := "now"
 			suptime := "+5m"
-			sup := mauve.CreateAlert(hbid, supraise, hbclear, hostname, hbsumm, hbdetail, suptime)
+			sup,err := mauve.CreateAlert(hbid, supraise, hbclear, hostname, hbsumm, hbdetail, suptime)
+			if err != nil {
+				log.Fatalf("Failed to create heartbeat suppression alert: %s", err)
+			}
 			client.AddBatchedAlert(sup)
-			clr := mauve.CreateAlert(hbid, hbclear, supraise, hostname, hbsumm, hbdetail, hbclear)
+			clr,err := mauve.CreateAlert(hbid, hbclear, supraise, hostname, hbsumm, hbdetail, hbclear)
+			if err != nil {
+				log.Fatalf("Failed to create heartbeat raise+clear alert: %s", err)
+			}
 			client.AddBatchedAlert(clr)
 			client.SendBatchedAlerts(false)
 		} else {
 			// 	Send a hearbeat alert (clear now, raise in 10 minutes - meant to be called every N where N < 5 minutes)
-			al := mauve.CreateAlert(hbid, hbraise, hbclear, hostname, hbsumm, hbdetail, hbclear)
+			al,err := mauve.CreateAlert(hbid, hbraise, hbclear, hostname, hbsumm, hbdetail, hbclear)
+			if err != nil {
+				log.Fatalf("Failed to send heartbeat: %s", err)
+			}
 			client.AddBatchedAlert(al)
 			client.SendBatchedAlerts(false)
 		}
@@ -72,8 +81,12 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		client.AddBatchedAlert(mauve.CreateAlert(*id, *raise, *clear, *subject, *summary, *detail, *suppress))
-		err := client.SendBatchedAlerts(*replace)
+		al,err := mauve.CreateAlert(*id, *raise, *clear, *subject, *summary, *detail, *suppress)
+		if err != nil {
+			log.Fatalf("Failed to create alert: %s", err)
+		}
+		client.AddBatchedAlert(al)
+		err = client.SendBatchedAlerts(*replace)
 		if err != nil {
 			log.Fatal(err)
 		}

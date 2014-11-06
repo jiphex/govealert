@@ -59,9 +59,9 @@ func (pbc *ProtobufClient) SendBatchedAlerts(replace bool) error {
 			}
 			//log.Printf("Sent: %s", up.String())
 			if bytes, err := conn.Write(mu); err != nil {
-				log.Fatalf("Failed to send message: %s", err)
+				log.Fatalf("Failed to send %d bytes of message: %s", bytes, err)
 			} else {
-				log.Printf("Sent %d bytes to %s:%d", bytes, srv.Host, srv.Port)
+				// log.Printf("Sent %d bytes to %s:%d", bytes, srv.Host, srv.Port)
 			}
 		}()
 	}
