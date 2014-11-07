@@ -6,7 +6,7 @@ import (
 	"log"	
 	"os"
 	"code.google.com/p/go.net/publicsuffix"
-	"drax.tlyk.eu/srv/git/govealert.git/mauve"
+	"github.com/jiphex/govealert"
 )
 
 func main() {
