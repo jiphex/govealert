@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Govealert by jiphex</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/main.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+
+      <header>
+        <h1>Govealert</h1>
+        <p>Client for MauveAlert, written in Go</p>
+      </header>
+
+      <div id="banner">
+        <span id="logo"></span>
+
+        <a href="https://github.com/jiphex/govealert" class="button fork"><strong>View On GitHub</strong></a>
+        <div class="downloads">
+          <span>Downloads:</span>
+          <ul>
+            <li><a href="https://github.com/jiphex/govealert/zipball/master" class="button">ZIP</a></li>
+            <li><a href="https://github.com/jiphex/govealert/tarball/master" class="button">TAR</a></li>
+          </ul>
+        </div>
+      </div><!-- end banner -->
+
+    <div class="wrapper">
+      <nav>
+        <ul></ul>
+      </nav>
+      <section>
+        <h1>
+<a id="govealert" class="anchor" href="#govealert" aria-hidden="true"><span class="octicon octicon-link"></span></a>Govealert</h1>
+
+<p>This is a client for <a href="http://www.bytemark.co.uk">Bytemark</a>'s <a href="http://projects.bytemark.co.uk/projects/mauvealert">MauveAlert</a> Monitoring service, written in Go.</p>
+
+<p><a href="http://projects.bytemark.co.uk/projects/mauvealert">MauveAlert</a> traditionally uses <a href="https://github.com/google/protobuf">Protobuf</a> packets sent over a plain UDP socket. The primary purpose of this client is to take flags specified on the command-line, and to translate these into valid Alert and Update protobuf-encoded packets, and to send these over the network to the right place.</p>
+
+<p>Additionally, this client should provide a Go library that can be used in other Go applications which may want to raise/clear Alerts (see the provided "mauve/" package).</p>
+
+<p>As an additional feature, this client provides support for a new "transport" for Mauve Alerts, transmitting them via an <a href="http://mqtt.org">MQTT</a> broker as an intermediary, with the idea that either the official MauveAlert server would at some point be able to read from the MQTT broker directly, or that another process (already partitially implemented in the _old/ directory) would connect to the MQTT broker and pass off packets to Mauve over UDP directly.</p>
+
+<p>An MQTT transport for alerts would provide the following benefits over the traditional UDP transport:</p>
+
+<ul>
+<li>Optional SSL encryption</li>
+<li>Confirmed delivery, over TCP using MQTT QOS "ONE" (at-least-once)</li>
+<li>Other applications may interact with the MQTT broker and act on alerts accordingly</li>
+</ul>
+
+<p>This client is <em>not</em> intended to be a drop-in replacement for the Ruby <code>mauvesend</code> binary included with the <code>mauvealert</code> distribution, and the command-line flags will be different.</p>
+
+<p>External dependencies are limited to the following:</p>
+
+<ul>
+<li>Google's Golang protobuf <a href="https://code.google.com/p/goprotobuf/">library</a>
+</li>
+<li>The Eclipse Paho Golang MQTT <a href="http://git.eclipse.org/c/paho/org.eclipse.paho.mqtt.golang.git/">library</a>
+</li>
+<li>Packages from the Go standard library</li>
+</ul>
+      </section>
+      <footer>
+        <p>Project maintained by <a href="https://github.com/jiphex">jiphex</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
