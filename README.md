@@ -23,6 +23,6 @@ External dependencies are limited to the following:
 * Packages from the Go standard library
 
 [bm]: http://www.bytemark.co.uk
-[mauve]: http://projects.bytemark.co.uk/mauvealert
+[mauve]: http://projects.bytemark.co.uk/projects/mauvealert
 [protobuf]: https://github.com/google/protobuf
 [mqtt]: http://mqtt.org
