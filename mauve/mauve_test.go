@@ -80,3 +80,36 @@ func TestAlertTopic(t *testing.T) {
 		}
 	}
 }
+
+func TestParseAlertTopic(t *testing.T) {
+	testBase := "testttestest"
+	testCases := map[string][]string {
+		"testttestest/foo/bar/baz": []string{"foo", "bar", "baz"}, // e.g testttestest/foo/bar/baz => t,f,ba,bz
+		"testttestest/foooooooooo": nil, // value of 'nil' means we're expecting this to error
+		"testttestest/foo/bar/baz/boo": []string{"foo", "bar", "baz/boo"},
+	}
+	for testTopic,expected := range testCases {
+		rSource,rSubject,rId,err := ParseAlertTopic(testBase,testTopic)
+		if err == nil {
+			if !SlicesEqual([]string{rSource,rSubject,rId},expected) {
+				t.Errorf("Mismatch with ParseAlertTopic from %s/%s (is %s, %s, %s)", testBase,testTopic,rSource,rSubject,rId)
+			}
+		} else {
+			if expected != nil { // if expected is nil then we're expecting an error
+				t.Fatal("Error returned from %s", testTopic)
+			}
+		}
+	}
+}
+
+func SlicesEqual(sliceA []string, sliceB []string) bool {
+	if len(sliceA) != len(sliceB) {
+		return false
+	}
+	for i,x := range sliceA {
+		if sliceB[i] != x {
+			return false
+		}
+	}
+	return true
+}
