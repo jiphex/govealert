@@ -22,6 +22,10 @@ External dependencies are limited to the following:
 * The Eclipse Paho Golang MQTT [library](http://git.eclipse.org/c/paho/org.eclipse.paho.mqtt.golang.git/)
 * Packages from the Go standard library
 
+Badges:
+
+[![Build Status](https://travis-ci.org/jiphex/govealert.svg?branch=master)](https://travis-ci.org/jiphex/govealert)
+
 [bm]: http://www.bytemark.co.uk
 [mauve]: http://projects.bytemark.co.uk/projects/mauvealert
 [protobuf]: https://github.com/google/protobuf
