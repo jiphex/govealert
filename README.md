@@ -1,5 +1,3 @@
-# Govealert
-
 This is a client for [Bytemark][bm]'s [MauveAlert][mauve] Monitoring service, written in Go.
 
 [MauveAlert][mauve] traditionally uses [Protobuf][protobuf] packets sent over a plain UDP socket. The primary purpose of this client is to take flags specified on the command-line, and to translate these into valid Alert and Update protobuf-encoded packets, and to send these over the network to the right place.
