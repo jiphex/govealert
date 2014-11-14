@@ -26,8 +26,8 @@ func main() {
 	replace := flag.Bool("replace", false, "Replace all alerts for this subject")
 	mauvealert := flag.String("mauve", psname, "Mauve server to dial (will lookup _mauve._udp SRV record of this domain)")
 	suppress := flag.String("suppress", "", "Suppress alert for the specified time")
-	heartbeat := flag.Bool("heartbeat", false, "Don't do normal operation, just send a 10 minute heartbeat")
-	cancel := flag.Bool("cancel", false, "When specified with -heartbeat, cancels the heartbeat (via suppress+raise, clear)")
+	mode := flag.String("mode", "single", "Sending mode, one of: single, heartbeat")	
+	cancel := flag.Bool("cancel", false, "In 'heartbeat' mode, cancels the heartbeat (via suppress+raise, clear)")
 	transport := flag.String("transport", "protobuf", "Which transport to use, currently one of: protobuf, mqtt")
 	mqttBroker := flag.String("mqttBroker", "tcp://localhost:1883", "The MQTT Broker to connect to")
 	mqttTopic := flag.String("mqttBase", "govealert", "Base topic for MQTT transport packets")
@@ -46,7 +46,7 @@ func main() {
 	if err != nil {
 		log.Printf("Failed to create %s client: %s", *transport, err)
 	}
-	if *heartbeat {
+	if *mode == "heartbeat" {
 		hbsumm := fmt.Sprintf("heartbeat failed for %s", hostname)
 		hbdetail := fmt.Sprintf("The govealert heartbeat wasn't sent for the host %s.", hostname)
 		hbid := "heartbeat"
