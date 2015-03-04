@@ -14,7 +14,7 @@ func TestCreateAlert(t *testing.T) {
 	summary := "This is a test of the CreateAlert function"
 	detail := "This is a test of the CreateAlert function and has some text in the detail"
 	suppress := ""
-	a,err := CreateAlert(testId,testRaiseTime,testClearTime,subject,summary,detail,suppress)
+	a, err := CreateAlert(testId, testRaiseTime, testClearTime, subject, summary, detail, suppress)
 	if err != nil {
 		t.Fatal("Alert creation failed: %s", err)
 	}
@@ -27,7 +27,7 @@ func TestCreateAlert(t *testing.T) {
 func TestCreateUpdate(t *testing.T) {
 	sourceTest := "test.example.com"
 	replace := false
-	fakeAlert,err := CreateAlert("id","now","","","","","")
+	fakeAlert, err := CreateAlert("id", "now", "", "", "", "", "")
 	if err != nil {
 		t.Fatal("Alert created with error: %s", err)
 	}
@@ -39,14 +39,14 @@ func TestCreateUpdate(t *testing.T) {
 }
 
 func TestParseTimeWithNow(t *testing.T) {
-	testCases := map[string]time.Duration {
+	testCases := map[string]time.Duration{
 		"now": 0,
-		"10s": time.Duration(10)*time.Second,
-		"3m": time.Duration(3)*time.Minute,
-		"6h": time.Duration(6)*time.Hour,
+		"10s": time.Duration(10) * time.Second,
+		"3m":  time.Duration(3) * time.Minute,
+		"6h":  time.Duration(6) * time.Hour,
 	}
-	for tVal,expected := range testCases {
-		xres,err := ParseTimeWithNow(tVal)
+	for tVal, expected := range testCases {
+		xres, err := ParseTimeWithNow(tVal)
 		if err != nil {
 			t.Fatal("Failed to parse time")
 		}
@@ -57,20 +57,20 @@ func TestParseTimeWithNow(t *testing.T) {
 }
 
 type ttAlertSSID struct {
-	Source string
+	Source  string
 	Subject string
-	Id string
+	Id      string
 }
 
 func TestAlertTopic(t *testing.T) {
-	testCases := map[ttAlertSSID]string {
-		ttAlertSSID{"tSource","tSubject","tId"}: "tSource/tSubject/tId", // normal
-		ttAlertSSID{"asdax/foo", "bar", "baz"}: "asdax_foo/bar/baz", // contains a slash in the source that should be escaped
-		ttAlertSSID{"asda", "barx/foo", "baz"}: "asda/barx_foo/baz", // contains a slash in the subject that should be escaped
-		ttAlertSSID{"asda", "bar", "bazx/foo"}: "asda/bar/bazx_foo", // contains a slash in the id that should be escaped
+	testCases := map[ttAlertSSID]string{
+		ttAlertSSID{"tSource", "tSubject", "tId"}: "tSource/tSubject/tId", // normal
+		ttAlertSSID{"asdax/foo", "bar", "baz"}:    "asdax_foo/bar/baz",    // contains a slash in the source that should be escaped
+		ttAlertSSID{"asda", "barx/foo", "baz"}:    "asda/barx_foo/baz",    // contains a slash in the subject that should be escaped
+		ttAlertSSID{"asda", "bar", "bazx/foo"}:    "asda/bar/bazx_foo",    // contains a slash in the id that should be escaped
 	}
 	for tass, expt := range testCases {
-		tAlert,err := CreateAlert(tass.Id, "", "", tass.Subject, "", "", "")
+		tAlert, err := CreateAlert(tass.Id, "", "", tass.Subject, "", "", "")
 		if err != nil {
 			t.Fatal("Failed to create alert: %s", err)
 		}
@@ -83,16 +83,16 @@ func TestAlertTopic(t *testing.T) {
 
 func TestParseAlertTopic(t *testing.T) {
 	testBase := "testttestest"
-	testCases := map[string][]string {
-		"testttestest/foo/bar/baz": []string{"foo", "bar", "baz"}, // e.g testttestest/foo/bar/baz => t,f,ba,bz
-		"testttestest/foooooooooo": nil, // value of 'nil' means we're expecting this to error
+	testCases := map[string][]string{
+		"testttestest/foo/bar/baz":     []string{"foo", "bar", "baz"}, // e.g testttestest/foo/bar/baz => t,f,ba,bz
+		"testttestest/foooooooooo":     nil,                           // value of 'nil' means we're expecting this to error
 		"testttestest/foo/bar/baz/boo": []string{"foo", "bar", "baz/boo"},
 	}
-	for testTopic,expected := range testCases {
-		rSource,rSubject,rId,err := ParseAlertTopic(testBase,testTopic)
+	for testTopic, expected := range testCases {
+		rSource, rSubject, rId, err := ParseAlertTopic(testBase, testTopic)
 		if err == nil {
-			if !SlicesEqual([]string{rSource,rSubject,rId},expected) {
-				t.Errorf("Mismatch with ParseAlertTopic from %s/%s (is %s, %s, %s)", testBase,testTopic,rSource,rSubject,rId)
+			if !SlicesEqual([]string{rSource, rSubject, rId}, expected) {
+				t.Errorf("Mismatch with ParseAlertTopic from %s/%s (is %s, %s, %s)", testBase, testTopic, rSource, rSubject, rId)
 			}
 		} else {
 			if expected != nil { // if expected is nil then we're expecting an error
@@ -106,7 +106,7 @@ func SlicesEqual(sliceA []string, sliceB []string) bool {
 	if len(sliceA) != len(sliceB) {
 		return false
 	}
-	for i,x := range sliceA {
+	for i, x := range sliceA {
 		if sliceB[i] != x {
 			return false
 		}

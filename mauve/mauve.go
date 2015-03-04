@@ -36,43 +36,43 @@ func randomTransmissionId() uint64 {
 
 // This is identical to time.ParseDuration(string), however it can also take
 // the single string specifier "now" which should always return 0
-func ParseTimeWithNow(raw string) (time.Duration,error) {
+func ParseTimeWithNow(raw string) (time.Duration, error) {
 	// This parses
 	if raw == "" {
-		return 0,fmt.Errorf("Invalid empty time string")
+		return 0, fmt.Errorf("Invalid empty time string")
 	} else if raw == "now" {
-		return 0,nil
+		return 0, nil
 	} else {
 		d, err := time.ParseDuration(raw)
 		if err != nil {
 			// log.Fatalf("Failed to parse raise time: ")
-			return 0,err
+			return 0, err
 		} else {
-			return d,nil
+			return d, nil
 		}
 	}
 }
 
-func CreateAlert(id string, raise string, clear string, subject string, summary string, detail string, suppress string) (*Alert,error) {
+func CreateAlert(id string, raise string, clear string, subject string, summary string, detail string, suppress string) (*Alert, error) {
 	var tRaise, tClear, tSuppress uint64
 	if raise != "" {
-		tDiff,err := ParseTimeWithNow(raise)
+		tDiff, err := ParseTimeWithNow(raise)
 		if err != nil {
-			return nil,fmt.Errorf("Problem with raise time: %s", err)
+			return nil, fmt.Errorf("Problem with raise time: %s", err)
 		}
 		tRaise = uint64(time.Now().Add(tDiff).Unix())
 	}
 	if clear != "" {
-		tDiff,err := ParseTimeWithNow(clear)
+		tDiff, err := ParseTimeWithNow(clear)
 		if err != nil {
-			return nil,fmt.Errorf("Problem with clear time: %s", err)
+			return nil, fmt.Errorf("Problem with clear time: %s", err)
 		}
 		tClear = uint64(time.Now().Add(tDiff).Unix())
 	}
 	if suppress != "" {
-		tDiff,err := ParseTimeWithNow(suppress)
+		tDiff, err := ParseTimeWithNow(suppress)
 		if err != nil {
-			return nil,fmt.Errorf("Problem with suppress time: %s", err)
+			return nil, fmt.Errorf("Problem with suppress time: %s", err)
 		}
 		tSuppress = uint64(time.Now().Add(tDiff).Unix())
 	}
@@ -94,7 +94,7 @@ func CreateAlert(id string, raise string, clear string, subject string, summary 
 	if detail != "" {
 		alert.Detail = &detail
 	}
-	return &alert,nil
+	return &alert, nil
 }
 
 func AlertTopic(al *Alert, source string) string {
@@ -112,7 +112,7 @@ func ParseAlertTopic(baseTopic string, topic string) (source string, subject str
 	parts := strings.SplitN(topic, "/", lBase+3)
 	if len(parts)+lBase != lBase+3+1 {
 		// panic(fmt.Sprintf("Failed: %d + %s + %s + %v", lBase, baseTopic, topic, parts))
-		return source,subject,id,fmt.Errorf("Bad-length topic: %s", topic)
+		return source, subject, id, fmt.Errorf("Bad-length topic: %s", topic)
 	}
 	return parts[1], parts[2], parts[3], nil
 }

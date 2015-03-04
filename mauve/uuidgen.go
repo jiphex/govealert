@@ -1,8 +1,8 @@
 package mauve
 
 import (
-	"math/rand"
 	"encoding/base32"
+	"math/rand"
 	"time"
 )
 
@@ -11,9 +11,9 @@ import (
 // than just making up a random number and converting it to base32
 func RandomID() string {
 	s := rand.NewSource(time.Now().UTC().UnixNano()) // don't really need a good random source
-	bytes := make([]byte,10) // 10 bytes because that means no padding (=).
+	bytes := make([]byte, 10)                        // 10 bytes because that means no padding (=).
 	for i := range bytes {
-		bytes[i] = byte(rand.New(s).Intn(256)) 
+		bytes[i] = byte(rand.New(s).Intn(256))
 	}
 	enc := base32.StdEncoding.EncodeToString(bytes)
 	return enc
