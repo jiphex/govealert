@@ -2,48 +2,49 @@ package mauve
 
 import (
 	"fmt"
-	"sync"
 	"log"
 	"net"
-	
-	"code.google.com/p/goprotobuf/proto"
+	"sync"
+
+	"github.com/jiphex/govealert/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
 )
+
 type ProtobufClient struct {
-	Hosts []*MauveAlertService
+	Hosts  []*MauveAlertService
 	Source string
-	
+
 	// Some internal fields
 	batchedAlerts []*Alert
 }
 
-func CreateProtobufClient(source string, domain string) (*ProtobufClient,error) {
+func CreateProtobufClient(source string, domain string) (*ProtobufClient, error) {
 	pbc := &ProtobufClient{}
 	pbc.Source = source
-	pbc.batchedAlerts = make([]*Alert,0)
-	ph,err := LookupMauvesForDomain(domain)
+	pbc.batchedAlerts = make([]*Alert, 0)
+	ph, err := LookupMauvesForDomain(domain)
 	if err != nil {
-		return nil,fmt.Errorf("Failed to lookup Mauve for %s: %s", domain, err)
+		return nil, fmt.Errorf("Failed to lookup Mauve for %s: %s", domain, err)
 	}
 	pbc.Hosts = ph
-	return pbc,nil
+	return pbc, nil
 }
 
 func (pbc *ProtobufClient) AddBatchedAlert(alert *Alert) {
-	pbc.batchedAlerts = append(pbc.batchedAlerts,alert)
+	pbc.batchedAlerts = append(pbc.batchedAlerts, alert)
 }
 
 func (pbc *ProtobufClient) SendBatchedAlerts(replace bool) error {
 	wg := &sync.WaitGroup{}
 	up := CreateUpdate(pbc.Source, replace, pbc.batchedAlerts...)
 	wg.Add(len(pbc.Hosts))
-	for _,srv := range pbc.Hosts {
+	for _, srv := range pbc.Hosts {
 		go func() {
 			defer wg.Done()
 			// This connects to Mauve over UDP and then waits on it's channel,
 			// any Alert that gets written to the channel will get wrapped in
 			// an AlertUpdate and then sent to the Mauve server
-			mauveIP,err := net.ResolveIPAddr("ip",srv.Host)
-			addr := &net.UDPAddr{mauveIP.IP,int(srv.Port),mauveIP.Zone}
+			mauveIP, err := net.ResolveIPAddr("ip", srv.Host)
+			addr := &net.UDPAddr{mauveIP.IP, int(srv.Port), mauveIP.Zone}
 			if err != nil {
 				log.Fatalf("Cannot resolve mauvealert server: %s", addr)
 			}

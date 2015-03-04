@@ -1,0 +1,29 @@
+{
+	"ImportPath": "github.com/jiphex/govealert",
+	"GoVersion": "go1.3.1",
+	"Packages": [
+		"github.com/jiphex//govealert",
+		"github.com/jiphex//govealert/mauve"
+	],
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go.net/publicsuffix",
+			"Comment": "null-240",
+			"Rev": "937a34c9de13c766c814510f76bca091dee06028"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.net/websocket",
+			"Comment": "null-240",
+			"Rev": "937a34c9de13c766c814510f76bca091dee06028"
+		},
+		{
+			"ImportPath": "code.google.com/p/goprotobuf/proto",
+			"Comment": "go.r60-157",
+			"Rev": "725eb0907b649c438e0e8f1601648597141fb66c"
+		},
+		{
+			"ImportPath": "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git",
+			"Rev": "3e58ec10bf2da9ef3fc639d12a0eb2e3596c2df7"
+		}
+	]
+}

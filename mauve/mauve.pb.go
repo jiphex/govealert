@@ -4,7 +4,7 @@
 
 package mauve
 
-import proto "code.google.com/p/goprotobuf/proto"
+import proto "github.com/jiphex/govealert/Godeps/_workspace/src/code.google.com/p/goprotobuf/proto"
 import json "encoding/json"
 import math "math"
 
