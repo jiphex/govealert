@@ -38,11 +38,11 @@ func alertTopic(al *Alert, source string) string {
 
 func (mqc *MQTTClient) SendBatchedAlerts(replace bool) error {
 	var err error
-	mqttOpts := mqtt.NewClientOptions().AddBroker(mqc.Broker).SetClientId(RandomID()).SetCleanSession(true).SetOnConnectionLost(func(client *mqtt.MqttClient, reason error){
+	mqttOpts := mqtt.NewClientOptions().AddBroker(mqc.Broker).SetClientID(RandomID()).SetCleanSession(true).SetConnectionLostHandler(func(client *mqtt.Client, reason error){
 		err = reason
 	})
 	client := mqtt.NewClient(mqttOpts)
-	if _, err = client.Start(); err != nil {
+	if tok := client.Connect(); tok.Error() != nil {
 		return err
 	} else {
 	    log.Printf("Connected to Broker")
@@ -61,8 +61,8 @@ func (mqc *MQTTClient) SendBatchedAlerts(replace bool) error {
 	    // send the packet
 	    log.Printf("Sending MQTT transport packet: %s", al)
 	    fullTopic := fmt.Sprintf("%s/%s", mqc.BaseTopic, alertTopic(al, mqc.Source))
-	    mqttreceipt := client.Publish(mqtt.QOS_ONE, fullTopic, pkt)
-	    <-mqttreceipt
+	    mqttTok := client.Publish(fullTopic, byte(1), false, pkt)
+	    mqttTok.Wait()
 	    log.Printf("Sent MQTT transport packet: %s", al)
 	}
 	return err
